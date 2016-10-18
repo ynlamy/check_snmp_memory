@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # check_snmp_memory
-# Description : Checks memory and swap usage on Windows/Linux Server
+# Description : Check memory and swap usage on Windows/Linux Server
 # Version : 1.9
 # Author : Yoann LAMY
 # Licence : GPLv2
