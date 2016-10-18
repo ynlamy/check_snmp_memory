@@ -1,4 +1,4 @@
-This plugin can check memory Windows or Linux Server using SNMP v1 queries.
+This plugin can check memory and swap usage on Windows or Linux Server using SNMP v1 queries.
 
 check_snmp_memory is written in Bash and is distributed under the GPLv2 license. This plugin have been created by Yoann LAMY.
 
