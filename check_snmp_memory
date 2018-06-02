@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # check_snmp_memory
-# Description : Check memory and swap usage on Windows/Linux Server
-# Version : 1.9
+# Description : Checks memory and swap usage
+# Version : 2.0
 # Author : Yoann LAMY
 # Licence : GPLv2
 
@@ -19,7 +19,7 @@ CMD_GREP="/bin/grep"
 SCRIPTNAME=`$CMD_BASENAME $0`
 
 # Version
-VERSION="1.9"
+VERSION="2.0"
 
 # Plugin return codes
 STATE_OK=0
@@ -129,7 +129,7 @@ size_convert() {
     VALUE=`echo "scale=2 ; $VALUE / 1024" | $CMD_BC`
     VALUE="$VALUE KB"
   else
-    VALUE="$VALUE Octets"
+    VALUE="$VALUE Bytes"
   fi
 }
 
@@ -140,38 +140,60 @@ if [ -n "$MEMORY_USED_ID" ]; then
     SWAP_USED_ID=`$CMD_SNMPWALK -t 2 -r 2 -v 1 -c $COMMUNITY $HOSTNAME $OID_TAGMEMORY | $CMD_GREP -i 'Virtual Memory' | $CMD_AWK '{ print $1}' | $CMD_AWK -F "." '{print $NF}'`
   fi
   MEMORY_TOTAL=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -OvqU $HOSTNAME ${OID_TOTAL}.${MEMORY_USED_ID}`
-  SWAP_TOTAL=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -OvqU $HOSTNAME ${OID_TOTAL}.${SWAP_USED_ID}`
   MEMORY_UNIT=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -OvqU $HOSTNAME ${OID_UNIT}.${MEMORY_USED_ID}`
-  SWAP_UNIT=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -OvqU $HOSTNAME ${OID_UNIT}.${SWAP_USED_ID}`
   MEMORY_USED=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -OvqU $HOSTNAME ${OID_USED}.${MEMORY_USED_ID}`
-  SWAP_USED=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -OvqU $HOSTNAME ${OID_USED}.${SWAP_USED_ID}`
 
-  BUFFER_USED=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -OvqU $HOSTNAME ${OID_BUFFER} 2> /dev/null`
-  CACHE_USED=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -OvqU $HOSTNAME ${OID_CACHE} 2> /dev/null`
-
-  if [ -n "$MEMORY_TOTAL" ] && [ -n "$MEMORY_USED" ] && [ -n "$SWAP_TOTAL" ] && [ -n "$SWAP_USED" ]; then
-    MEMORY_USED=`$CMD_EXPR \( $MEMORY_USED \* $MEMORY_UNIT \)`
-    SWAP_USED=`$CMD_EXPR \( $SWAP_USED \* $SWAP_UNIT \)`
-    MEMORY_TOTAL=`$CMD_EXPR \( $MEMORY_TOTAL \* $MEMORY_UNIT \)`
-    SWAP_TOTAL=`$CMD_EXPR \( $SWAP_TOTAL \* $SWAP_UNIT \)`
-    MEMORY_USED_POURCENT=`$CMD_EXPR \( $MEMORY_USED \* 100 \) / $MEMORY_TOTAL`
-    SWAP_USED_POURCENT=`$CMD_EXPR \( $SWAP_USED \* 100 \) / $SWAP_TOTAL`
+  if [ -n "$MEMORY_TOTAL" ] && [ -n "$MEMORY_UNIT" ] && [ -n "$MEMORY_USED" ]; then
     PERFDATA_WARNING=0
     PERFDATA_CRITICAL=0
+	
+    MEMORY_USED=`$CMD_EXPR \( $MEMORY_USED \* $MEMORY_UNIT \)`
+    MEMORY_TOTAL=`$CMD_EXPR \( $MEMORY_TOTAL \* $MEMORY_UNIT \)`
+    MEMORY_USED_POURCENT=`$CMD_EXPR \( $MEMORY_USED \* 100 \) / $MEMORY_TOTAL`
 
-    if [ -z "$BUFFER_USED" ] && [ -z "$CACHE_USED" ]; then
-      BUFFER_USED=0
-      CACHE_USED=0
-    else
+    if [ -n "$SWAP_USED_ID" ]; then
+      SWAP_TOTAL=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -OvqU $HOSTNAME ${OID_TOTAL}.${SWAP_USED_ID}`
+      SWAP_UNIT=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -OvqU $HOSTNAME ${OID_UNIT}.${SWAP_USED_ID}`
+      SWAP_USED=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -OvqU $HOSTNAME ${OID_USED}.${SWAP_USED_ID}`
+
+      SWAP_USED=`$CMD_EXPR \( $SWAP_USED \* $SWAP_UNIT \)`
+      SWAP_TOTAL=`$CMD_EXPR \( $SWAP_TOTAL \* $SWAP_UNIT \)`
+      SWAP_USED_POURCENT=`$CMD_EXPR \( $SWAP_USED \* 100 \) / $SWAP_TOTAL`
+	  
+      VALUE=$SWAP_TOTAL
+      size_convert
+      SWAP_TOTAL_FORMAT=$VALUE
+
+      VALUE=$SWAP_USED
+      size_convert
+      SWAP_USED_FORMAT=$VALUE
+    fi
+
+    BUFFER_USED=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -OvqU $HOSTNAME ${OID_BUFFER} 2> /dev/null`
+    CACHE_USED=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -OvqU $HOSTNAME ${OID_CACHE} 2> /dev/null`
+
+    if [ -n "$BUFFER_USED" ] && [ -n "$CACHE_USED" ]; then
       BUFFER_USED=`$CMD_EXPR \( $BUFFER_USED \* 1024 \)`
       CACHE_USED=`$CMD_EXPR \( $CACHE_USED \* 1024 \)`
+
+      VALUE=$BUFFER_USED
+      size_convert
+      BUFFER_USED_FORMAT=$VALUE
+
+      VALUE=$CACHE_USED
+      size_convert
+      CACHE_USED_FORMAT=$VALUE
     fi
 
     if [ $WARNING != 0 ] || [ $CRITICAL != 0 ]; then
       PERFDATA_WARNING=`$CMD_EXPR \( $MEMORY_TOTAL \* $WARNING \) / 100`
       PERFDATA_CRITICAL=`$CMD_EXPR \( $MEMORY_TOTAL \* $CRITICAL \) / 100`
 
-      MEMORY_USED_REAL=`$CMD_EXPR \( $MEMORY_USED - $CACHE_USED \)`
+      if [ -n "$CACHE_USED" ]; then
+        MEMORY_USED_REAL=`$CMD_EXPR \( $MEMORY_USED - $CACHE_USED \)`
+      else
+	     MEMORY_USED_REAL=$MEMORY_USED
+      fi
       MEMORY_USED_REAL_POURCENT=`$CMD_EXPR \( $MEMORY_USED_REAL \* 100 \) / $MEMORY_TOTAL`
 
       if [ $MEMORY_USED_REAL_POURCENT -gt $CRITICAL ] && [ $CRITICAL != 0 ]; then
@@ -194,30 +216,21 @@ if [ -n "$MEMORY_USED_ID" ]; then
     size_convert
     MEMORY_USED_FORMAT=$VALUE
 
-    VALUE=$BUFFER_USED
-    size_convert
-    BUFFER_USED_FORMAT=$VALUE
-
-    VALUE=$CACHE_USED
-    size_convert
-    CACHE_USED_FORMAT=$VALUE
-
-    VALUE=$SWAP_TOTAL
-    size_convert
-    SWAP_TOTAL_FORMAT=$VALUE
-
-    VALUE=$SWAP_USED
-    size_convert
-    SWAP_USED_FORMAT=$VALUE
-
     DESCRIPTION="Memory usage : $MEMORY_USED_FORMAT used for a total of $MEMORY_TOTAL_FORMAT (${MEMORY_USED_POURCENT}%)"
-    if [ "$BUFFER_USED" = 0 ] && [ "$CACHE_USED" = 0 ]; then
-      DESCRIPTION="${DESCRIPTION}, SWAP usage : $SWAP_USED_FORMAT used for a total of $SWAP_TOTAL_FORMAT (${SWAP_USED_POURCENT}%)"
-    else
-      DESCRIPTION="$DESCRIPTION with $BUFFER_USED_FORMAT in buffer and $CACHE_USED_FORMAT in cache, SWAP usage : $SWAP_USED_FORMAT used for a total of $SWAP_TOTAL_FORMAT (${SWAP_USED_POURCENT}%)"
+    if [ -n "$BUFFER_USED" ] && [ -n "$CACHE_USED" ]; then
+      DESCRIPTION="$DESCRIPTION with $BUFFER_USED_FORMAT in buffer and $CACHE_USED_FORMAT in cache"
+    fi
+	if [ -n "$SWAP_USED_ID" ]; then
+	  DESCRIPTION="${DESCRIPTION}, SWAP usage : $SWAP_USED_FORMAT used for a total of $SWAP_TOTAL_FORMAT (${SWAP_USED_POURCENT}%)"
+	fi
+    DESCRIPTION="${DESCRIPTION}| total=${MEMORY_TOTAL}B;$PERFDATA_WARNING;$PERFDATA_CRITICAL;0 used=${MEMORY_USED}B;0;0;0"
+    if [ -n "$SWAP_USED_ID" ]; then
+      DESCRIPTION="${DESCRIPTION} swap=${SWAP_USED}B;0;0;0"
+    fi
+    if [ -n "$BUFFER_USED" ] && [ -n "$CACHE_USED" ]; then
+      DESCRIPTION="${DESCRIPTION} buffer=${BUFFER_USED}B;0;0;0 cache=${CACHE_USED}B;0;0;0"
     fi
 
-    DESCRIPTION="${DESCRIPTION}| total=${MEMORY_TOTAL}B;$PERFDATA_WARNING;$PERFDATA_CRITICAL;0 used=${MEMORY_USED}B;0;0;0 swap=${SWAP_USED}B;0;0;0 buffer=${BUFFER_USED}B;0;0;0 cache=${CACHE_USED}B;0;0;0"
   fi
 fi
 
