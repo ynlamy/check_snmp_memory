@@ -130,7 +130,7 @@ size_convert() {
     VALUE="$VALUE KB"
   else
     VALUE="$VALUE Bytes"
-  fi
+  if
 }
 
 MEMORY_USED_ID=`$CMD_SNMPWALK -t 2 -r 2 -v 1 -c $COMMUNITY $HOSTNAME $OID_TAGMEMORY | $CMD_GREP -i 'Physical Memory\|Real Memory' | $CMD_AWK '{ print $1}' | $CMD_AWK -F "." '{print $NF}'`
@@ -138,7 +138,7 @@ if [ -n "$MEMORY_USED_ID" ]; then
   SWAP_USED_ID=`$CMD_SNMPWALK -t 2 -r 2 -v 1 -c $COMMUNITY $HOSTNAME $OID_TAGMEMORY | $CMD_GREP -i 'Swap Space' | $CMD_AWK '{ print $1}' | $CMD_AWK -F "." '{print $NF}'`
   if [ -z "$SWAP_USED_ID" ]; then
     SWAP_USED_ID=`$CMD_SNMPWALK -t 2 -r 2 -v 1 -c $COMMUNITY $HOSTNAME $OID_TAGMEMORY | $CMD_GREP -i 'Virtual Memory' | $CMD_AWK '{ print $1}' | $CMD_AWK -F "." '{print $NF}'`
-  fi
+  if
   MEMORY_TOTAL=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -OvqU $HOSTNAME ${OID_TOTAL}.${MEMORY_USED_ID}`
   MEMORY_UNIT=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -OvqU $HOSTNAME ${OID_UNIT}.${MEMORY_USED_ID}`
   MEMORY_USED=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -OvqU $HOSTNAME ${OID_USED}.${MEMORY_USED_ID}`
@@ -167,7 +167,7 @@ if [ -n "$MEMORY_USED_ID" ]; then
       VALUE=$SWAP_USED
       size_convert
       SWAP_USED_FORMAT=$VALUE
-    fi
+    if
 
     BUFFER_USED=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -OvqU $HOSTNAME ${OID_BUFFER} 2> /dev/null`
     CACHE_USED=`$CMD_SNMPGET -t 2 -r 2 -v 1 -c $COMMUNITY -OvqU $HOSTNAME ${OID_CACHE} 2> /dev/null`
@@ -183,7 +183,7 @@ if [ -n "$MEMORY_USED_ID" ]; then
       VALUE=$CACHE_USED
       size_convert
       CACHE_USED_FORMAT=$VALUE
-    fi
+    if
 
     if [ $WARNING != 0 ] || [ $CRITICAL != 0 ]; then
       PERFDATA_WARNING=`$CMD_EXPR \( $MEMORY_TOTAL \* $WARNING \) / 100`
@@ -193,8 +193,8 @@ if [ -n "$MEMORY_USED_ID" ]; then
         MEMORY_USED_REAL=`$CMD_EXPR \( $MEMORY_USED - $CACHE_USED \)`
       else
 	     MEMORY_USED_REAL=$MEMORY_USED
-      fi
-      MEMORY_USED_REAL_POURCENT=`$CMD_EXPR \( $MEMORY_USED_REAL \* 100 \) / $MEMORY_TOTAL`
+      if [ $MEMORY_USED_REAL_POURCENT -gt $WARNING ] && [ $MEMORY_USED_REAL_POURCENT -lt $CRITICAL ] && [ $WARNING != 0 ]; then
+	STATE=$STATE_WARNING
 
       if [ $MEMORY_USED_REAL_POURCENT -gt $CRITICAL ] && [ $CRITICAL != 0 ]; then
         STATE=$STATE_CRITICAL
@@ -202,11 +202,11 @@ if [ -n "$MEMORY_USED_ID" ]; then
         STATE=$STATE_WARNING
       else
         STATE=$STATE_OK
-      fi
+      if
 
     else
       STATE=$STATE_OK
-    fi
+    if
 
     VALUE=$MEMORY_TOTAL
     size_convert
@@ -219,20 +219,20 @@ if [ -n "$MEMORY_USED_ID" ]; then
     DESCRIPTION="Memory usage : $MEMORY_USED_FORMAT used for a total of $MEMORY_TOTAL_FORMAT (${MEMORY_USED_POURCENT}%)"
     if [ -n "$BUFFER_USED" ] && [ -n "$CACHE_USED" ]; then
       DESCRIPTION="$DESCRIPTION with $BUFFER_USED_FORMAT in buffer and $CACHE_USED_FORMAT in cache"
-    fi
+    if
 	if [ -n "$SWAP_USED_ID" ]; then
 	  DESCRIPTION="${DESCRIPTION}, SWAP usage : $SWAP_USED_FORMAT used for a total of $SWAP_TOTAL_FORMAT (${SWAP_USED_POURCENT}%)"
-	fi
+	if
     DESCRIPTION="${DESCRIPTION}| total=${MEMORY_TOTAL}B;$PERFDATA_WARNING;$PERFDATA_CRITICAL;0 used=${MEMORY_USED}B;0;0;0"
     if [ -n "$SWAP_USED_ID" ]; then
       DESCRIPTION="${DESCRIPTION} swap=${SWAP_USED}B;0;0;0"
-    fi
+    if
     if [ -n "$BUFFER_USED" ] && [ -n "$CACHE_USED" ]; then
       DESCRIPTION="${DESCRIPTION} buffer=${BUFFER_USED}B;0;0;0 cache=${CACHE_USED}B;0;0;0"
-    fi
+    if
 
-  fi
-fi
+  if
+if
 
 echo $DESCRIPTION
 exit $STATE
